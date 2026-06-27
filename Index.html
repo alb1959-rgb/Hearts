@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Hearts by the Fire 🔥</title>
+
+<style>
+:root{
+  --gold:#f5c842;--gold2:#e8a020;
+  --fire1:#ff2200;--fire2:#ff6600;--fire3:#ffaa00;
+  --bg:#0d0a04;--card-w:56px;--card-h:82px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#f5e8c8}
+
+#fireCanvas{position:fixed;bottom:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#scene{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none}
+#app{position:relative;z-index:2;height:100vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+.screen{min-height:100vh;padding:20px 16px 40px;display:none;flex-direction:column;align-items:center;justify-content:center}
+.screen.active{display:flex}
+#gameScreen{justify-content:flex-start;padding:0}
+
+/* ── CARDS / GLASS ── */
+.glass{background:rgba(12,6,0,.88);border:1.5px solid rgba(255,180,40,.22);border-radius:20px;padding:24px 20px;width:100%;max-width:420px;backdrop-filter:blur(8px)}
+
+/* ── SETUP SCREEN ── */
+.logo{text-align:center;margin-bottom:6px}
+.logo .flame{font-size:54px;display:block;line-height:1}
+.logo h1{font-size:28px;font-weight:900;background:linear-gradient(135deg,#ffdd44 0%,#ff6600 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo p{font-size:13px;color:rgba(245,220,150,.55);margin-top:4px;margin-bottom:22px}
+.inp{width:100%;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,180,40,.22);border-radius:12px;color:#f5e8c8;font-size:16px;padding:12px 15px;outline:none;transition:.2s;margin-bottom:10px}
+.inp:focus{border-color:rgba(255,180,40,.6);background:rgba(255,255,255,.1)}
+.inp::placeholder{color:rgba(245,220,150,.28)}
+.btn{width:100%;border:none;border-radius:12px;font-size:15px;font-weight:700;padding:14px;cursor:pointer;transition:.15s;letter-spacing:.2px;margin-bottom:8px}
+.btn:active{transform:scale(.97)}
+.btn-fire{background:linear-gradient(135deg,#c03808,#e05010);color:#fff}
+.btn-gold{background:linear-gradient(135deg,#c8940a,#e0b020);color:#1a0800}
+.btn-ghost{background:rgba(255,255,255,.07);border:1.5px solid rgba(255,180,40,.2);color:#f5e8c8}
+.btn-sm{padding:9px 14px;font-size:13px;width:auto}
+.divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:rgba(245,220,150,.3);font-size:12px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(255,180,40,.12)}
+.inp-row{display:flex;gap:8px;margin-bottom:10px}
+.inp-code{flex:1;text-transform:uppercase;letter-spacing:5px;font-size:22px;font-weight:800;text-align:center}
+
+/* ── ROOM ── */
+.room-box{text-align:center;background:rgba(255,180,40,.07);border:1.5px solid rgba(255,180,40,.25);border-radius:14px;padding:14px;margin:14px 0}
+.room-box .rlbl{font-size:11px;color:rgba(245,220,150,.45);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+.room-box .rcode{font-size:40px;font-weight:900;color:var(--gold);letter-spacing:10px}
+.plist{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.prow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,180,40,.08)}
+.prow:last-child{border-bottom:none}
+.av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.av0{background:rgba(200,60,10,.4);color:#ff9060}
+.av1{background:rgba(10,120,200,.4);color:#60c0ff}
+.av2{background:rgba(10,180,80,.4);color:#60ee90}
+.av3{background:rgba(180,30,180,.4);color:#e070ff}
+.pi{flex:1}.pi .pn{font-size:14px;font-weight:600}.pi .ps{font-size:11px;color:rgba(245,220,150,.4)}
+.dot{width:8px;height:8px;border-radius:50%;background:#44ee66;box-shadow:0 0 6px #44ee66}
+.sbar{text-align:center;font-size:13px;color:rgba(245,220,150,.45);margin-top:10px;min-height:18px}
+
+/* ── GAME ── */
+.g-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,0,0,.55);border-bottom:1px solid rgba(255,180,40,.1)}
+.g-title{font-size:14px;font-weight:700;color:var(--gold)}
+.g-btns{display:flex;gap:6px}
+.gb{background:rgba(255,255,255,.08);border:1px solid rgba(255,180,40,.18);border-radius:8px;color:#f5e8c8;font-size:12px;padding:6px 12px;cursor:pointer}
+.gb:active{background:rgba(255,255,255,.15)}
+
+.sstrip{display:flex;gap:4px;padding:8px 10px;background:rgba(0,0,0,.4)}
+.sp{flex:1;background:rgba(12,6,0,.7);border:1px solid rgba(255,180,40,.13);border-radius:10px;padding:6px 3px;text-align:center;transition:.3s;min-width:0}
+.sp.myturn{border-color:var(--gold);background:rgba(245,200,66,.1)}
+.sp.danger{border-color:#ff5555;background:rgba(255,40,40,.08)}
+.sp .sn{font-size:10px;color:rgba(245,220,150,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp .ss{font-size:20px;font-weight:800;color:var(--gold);line-height:1.1}
+.sp .st{font-size:9px;color:rgba(245,220,150,.35)}
+
+.turn-banner{text-align:center;padding:7px 10px;font-size:13px;font-weight:600;color:var(--gold);background:rgba(245,200,66,.08);border-top:1px solid rgba(245,200,66,.12);border-bottom:1px solid rgba(245,200,66,.12)}
+.turn-banner.wait{color:rgba(245,220,150,.45);background:transparent;border-color:transparent}
+
+.trick-zone{margin:8px 10px;background:rgba(0,40,0,.28);border:1px solid rgba(80,200,80,.1);border-radius:16px;padding:10px;min-height:114px}
+.tz-lbl{font-size:11px;color:rgba(245,220,150,.4);text-align:center;margin-bottom:8px}
+.tz-cards{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;min-height:82px;align-items:center}
+.pcw{display:flex;flex-direction:column;align-items:center;gap:3px}
+.pcw-name{font-size:10px;color:rgba(245,220,150,.5);max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+
+.hand-zone{margin:0 10px 8px;background:rgba(0,0,0,.38);border:1px solid rgba(255,180,40,.1);border-radius:16px;padding:10px}
+.hz-lbl{font-size:11px;color:rgba(245,220,150,.4);margin-bottom:8px}
+.hz-cards{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+
+.pass-bar{margin:0 10px 8px;background:rgba(0,0,80,.22);border:1px solid rgba(80,120,255,.18);border-radius:14px;padding:10px;text-align:center}
+.pb-t{font-size:13px;font-weight:700;color:#a0c0ff;margin-bottom:3px}
+.pb-s{font-size:11px;color:rgba(160,192,255,.5)}
+.pb-c{font-size:12px;color:var(--gold);margin-top:4px}
+
+.action-bar{padding:10px 10px 20px;display:flex;justify-content:center}
+
+/* ── PLAYING CARDS ── */
+.pc{width:var(--card-w);height:var(--card-h);border-radius:9px;border:2px solid #ddd8c4;background:linear-gradient(160deg,#fffef9 0%,#f8f4e8 100%);display:flex;flex-direction:column;justify-content:space-between;padding:4px 5px;cursor:pointer;transition:transform .12s,border-color .15s,box-shadow .15s;flex-shrink:0;position:relative;overflow:hidden}
+.pc::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.3) 0%,rgba(255,255,255,0) 55%);pointer-events:none;border-radius:7px}
+.pc:active{transform:translateY(-6px) scale(1.04)!important}
+.pc.sel{border-color:var(--gold);transform:translateY(-12px);box-shadow:0 0 18px rgba(245,200,66,.55)}
+.pc.dead{opacity:.35;cursor:not-allowed}
+.pc.dead:active{transform:none!important}
+.pc.red{color:#cc0f0a}
+.pc.black{color:#0a0a12}
+.pc-t{font-size:12px;font-weight:800;line-height:1.1}
+.pc-m{font-size:22px;line-height:1;text-align:center}
+.pc-b{font-size:12px;font-weight:800;line-height:1.1;transform:rotate(180deg);align-self:flex-end}
+.pc-back{background:linear-gradient(135deg,#0d3d0d 0%,#1a5c1a 45%,#0d3d0d 100%);cursor:default;border-color:#2a5a2a}
+.pc-back-inner{position:absolute;inset:5px;border-radius:5px;border:1.5px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:18px}
+
+/* ── PANELS ── */
+.panel{position:fixed;inset:0;z-index:20;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.65)}
+.panel.open{display:flex}
+.pbox{background:rgba(12,6,0,.97);border:1.5px solid rgba(255,180,40,.22);border-radius:22px 22px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;position:relative}
+.pbox h2{font-size:18px;font-weight:800;color:var(--gold);margin-bottom:14px;text-align:center}
+.pcls{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.1);border:none;color:#f5e8c8;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer}
+.isec{margin-bottom:14px}
+.isec h3{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:5px}
+.isec p,.isec li{font-size:13px;color:rgba(245,220,150,.8);line-height:1.65}
+.isec ul{padding-left:16px}
+.stbl{width:100%;border-collapse:collapse;margin:8px 0}
+.stbl th{background:rgba(200,148,10,.15);color:var(--gold);padding:8px;text-align:center;font-size:12px;border:1px solid rgba(255,180,40,.12)}
+.stbl td{padding:8px;text-align:center;font-size:14px;border:1px solid rgba(255,180,40,.07);color:#f5e8c8}
+.stbl tr.lead td{background:rgba(200,64,10,.1)}
+.re-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,180,40,.07);font-size:14px}
+.moon-msg{background:rgba(180,130,0,.18);border:1.5px solid rgba(255,200,40,.35);border-radius:10px;padding:11px;text-align:center;margin:10px 0;font-size:14px;color:var(--gold)}
+.winner-box{text-align:center;margin:12px 0}
+.winner-box .trophy{font-size:56px;display:block;margin-bottom:8px}
+.winner-box h2{font-size:22px;font-weight:800;color:var(--gold)}
+
+/* ── SETUP CONFIG ── */
+.step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+.stepnum{width:26px;height:26px;border-radius:50%;background:rgba(200,60,10,.45);color:#ff9060;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.steptxt{font-size:13px;color:rgba(245,220,150,.8);line-height:1.65}
+.steptxt a{color:#60a8ff;text-decoration:underline}
+.steptxt code{background:rgba(255,255,255,.1);border-radius:4px;padding:1px 5px;font-size:12px;color:#a0d8ff}
+.cfg-err{color:#ff7777;font-size:12px;margin-top:6px;text-align:center;min-height:18px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:rgba(18,8,0,.96);border:1.5px solid rgba(255,180,40,.38);border-radius:12px;padding:10px 22px;font-size:14px;color:var(--gold);z-index:50;pointer-events:none;transition:opacity .3s;max-width:88vw;text-align:center;font-weight:600}
+.toast.hide{opacity:0}
+
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+.dots span{animation:pulse 1.3s infinite;display:inline-block}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+</style>
+</head>
+<body>
+<canvas id="fireCanvas"></canvas>
+<div id="scene">
+<svg viewBox="0 0 400 700" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="35%" r="70%"><stop offset="0%" stop-color="#18193a"/><stop offset="100%" stop-color="#06050f"/></radialGradient>
+    <radialGradient id="gnd" cx="50%" cy="100%" r="80%"><stop offset="0%" stop-color="#3d2408"/><stop offset="100%" stop-color="#100800"/></radialGradient>
+  </defs>
+  <rect width="400" height="700" fill="url(#sky)"/>
+  <g fill="#fff" opacity=".85">
+    <circle cx="32" cy="22" r="1.3"/><circle cx="75" cy="10" r="1"/><circle cx="118" cy="38" r="1.5"/>
+    <circle cx="165" cy="16" r="1"/><circle cx="205" cy="48" r="1.2"/><circle cx="250" cy="8" r="1"/>
+    <circle cx="295" cy="30" r="1.4"/><circle cx="348" cy="18" r="1"/><circle cx="378" cy="55" r="1.2"/>
+    <circle cx="55" cy="70" r="1"/><circle cx="195" cy="72" r="1"/><circle cx="288" cy="65" r="1.3"/>
+    <circle cx="140" cy="85" r=".9"/><circle cx="325" cy="80" r="1.1"/><circle cx="15" cy="95" r="1"/>
+  </g>
+  <circle cx="336" cy="52" r="24" fill="#f5e8b0" opacity=".88"/>
+  <circle cx="345" cy="45" r="20" fill="#0d0e22" opacity=".92"/>
+  <circle cx="336" cy="52" r="36" fill="#f5e8b0" opacity=".04"/>
+  <ellipse cx="80" cy="380" rx="130" ry="60" fill="#0a1a08"/>
+  <ellipse cx="320" cy="375" rx="120" ry="55" fill="#08180a"/>
+  <rect y="360" width="400" height="340" fill="url(#gnd)"/>
+  <ellipse cx="200" cy="380" rx="180" ry="12" fill="#0d0600" opacity=".5"/>
+  <g opacity=".93">
+    <polygon points="0,370 28,210 54,370" fill="#0a1a08"/>
+    <polygon points="18,370 50,180 78,370" fill="#071408"/>
+    <polygon points="-8,370 22,230 48,370" fill="#0d1e0a"/>
+    <polygon points="42,370 68,200 92,370" fill="#091508"/>
+    <rect x="26" y="340" width="6" height="32" rx="2" fill="#1a0d04"/>
+    <rect x="53" y="345" width="5" height="27" rx="2" fill="#1a0d04"/>
+  </g>
+  <g opacity=".93">
+    <polygon points="346,370 372,195 400,370" fill="#0a1a08"/>
+    <polygon points="322,370 352,215 382,370" fill="#071408"/>
+    <polygon points="360,370 390,225 420,370" fill="#0d1e0a"/>
+    <polygon points="308,370 336,205 362,370" fill="#091508"/>
+    <rect x="368" y="340" width="6" height="32" rx="2" fill="#1a0d04"/>
+    <rect x="345" y="348" width="5" height="24" rx="2" fill="#1a0d04"/>
+  </g>
+  <ellipse cx="200" cy="530" rx="58" ry="18" fill="#1e1008"/>
+  <ellipse cx="200" cy="528" rx="58" ry="18" fill="none" stroke="#3a2010" stroke-width="5"/>
+  <ellipse cx="200" cy="526" rx="50" ry="13" fill="none" stroke="#4a2a14" stroke-width="3"/>
+  <ellipse cx="152" cy="527" rx="8" ry="5" fill="#2a1808" stroke="#3a2212" stroke-width="1"/>
+  <ellipse cx="248" cy="527" rx="8" ry="5" fill="#2a1808" stroke="#3a2212" stroke-width="1"/>
+  <ellipse cx="175" cy="538" rx="7" ry="4" fill="#2a1808" stroke="#3a2212" stroke-width="1"/>
+  <ellipse cx="225" cy="538" rx="7" ry="4" fill="#2a1808" stroke="#3a2212" stroke-width="1"/>
+  <ellipse cx="200" cy="542" rx="9" ry="4" fill="#2a1808" stroke="#3a2212" stroke-width="1"/>
+  <rect x="162" y="520" width="76" height="9" rx="4" fill="#2a1204" transform="rotate(-18,200,524)"/>
+  <rect x="162" y="520" width="76" height="9" rx="4" fill="#2a1204" transform="rotate(18,200,524)"/>
+  <rect x="175" y="521" width="50" height="7" rx="3" fill="#331608"/>
+  <g fill="#120800" opacity=".95">
+    <rect x="92" y="498" width="36" height="4" rx="2"/><rect x="96" y="502" width="28" height="22" rx="2"/>
+    <rect x="92" y="515" width="5" height="18" rx="2"/><rect x="119" y="515" width="5" height="18" rx="2"/>
+    <rect x="92" y="500" width="4" height="22" rx="2"/>
+    <rect x="92" y="505" width="14" height="3" rx="1"/><rect x="110" y="505" width="14" height="3" rx="1"/>
+  </g>
+  <g fill="#120800" opacity=".95">
+    <rect x="272" y="498" width="36" height="4" rx="2"/><rect x="276" y="502" width="28" height="22" rx="2"/>
+    <rect x="272" y="515" width="5" height="18" rx="2"/><rect x="299" y="515" width="5" height="18" rx="2"/>
+    <rect x="304" y="500" width="4" height="22" rx="2"/>
+    <rect x="272" y="505" width="14" height="3" rx="1"/><rect x="290" y="505" width="14" height="3" rx="1"/>
+  </g>
+  <ellipse cx="200" cy="516" rx="22" ry="7" fill="#1a0e04"/>
+  <rect x="196" y="516" width="8" height="14" rx="2" fill="#140b03"/>
+</svg>
+</div>
+
+<div class="toast hide" id="toast"></div>
+
+<div id="app">
+
+<!-- SETUP / CONFIG SCREEN -->
+<div class="screen active" id="setupScreen">
+  <div class="glass">
+    <div class="logo">
+      <span class="flame">🔥</span>
+      <h1>Hearts by the Fire</h1>
+      <p>Multiplayer card game — gather round</p>
+    </div>
+
+    <!-- Step A: Supabase config (shown first time) -->
+    <div id="cfgSection" style="display:none">
+      <div class="step"><div class="stepnum">1</div><div class="steptxt">Go to <a href="https://supabase.com" target="_blank">supabase.com</a> → click <b>Start your project</b> → sign in with <b>GitHub or Google</b> (no two-factor required!)</div></div>
+      <div class="step"><div class="stepnum">2</div><div class="steptxt">Click <b>New project</b> → name it <code>hearts-fire</code> → pick any region → set any database password → click <b>Create new project</b> (takes ~30 seconds)</div></div>
+      <div class="step"><div class="stepnum">3</div><div class="steptxt">In your project, click <b>Project Settings</b> (gear icon) → <b>API</b> → copy your <b>Project URL</b> and <b>anon public</b> key</div></div>
+      <div class="step"><div class="stepnum">4</div><div class="steptxt">In Supabase, go to <b>SQL Editor</b> → click <b>New query</b> → paste and run this:<br><code style="display:block;margin-top:6px;padding:8px;background:rgba(0,0,0,.4);border-radius:6px;font-size:11px;line-height:1.7;white-space:pre-wrap">create table if not exists rooms (
+  code text primary key,
+  state jsonb,
+  updated_at timestamptz default now()
+);
+alter table rooms enable row level security;
+create policy "open" on rooms for all using (true);</code></div></div>
+      <input class="inp" id="sbUrl" placeholder="Project URL  (https://xxxx.supabase.co)" autocomplete="off" autocorrect="off" spellcheck="false">
+      <input class="inp" id="sbKey" placeholder="anon public key  (eyJ...)" autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="cfg-err" id="cfgErr"></div>
+      <button class="btn btn-fire" onclick="saveSupabase()">Save and start playing 🔥</button>
+      <button class="btn btn-ghost" style="font-size:13px" onclick="demoMode()">Play demo (no internet needed)</button>
+    </div>
+
+    <!-- Step B: Lobby (shown after config saved) -->
+    <div id="lobbySection">
+      <div id="connStatus" style="font-size:12px;text-align:center;min-height:16px;margin-bottom:6px;color:#88ee88"></div>
+      <input class="inp" id="nameInp" placeholder="Your name" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="btn btn-fire" onclick="hostGame()">Host a new game</button>
+      <div class="divider">or join a friend</div>
+      <div class="inp-row">
+        <input class="inp inp-code" id="codeInp" placeholder="CODE" maxlength="6" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="margin-bottom:0">
+        <button class="btn btn-gold btn-sm" onclick="joinGame()">Join →</button>
+      </div>
+
+      <div id="roomBox" style="display:none">
+        <div class="room-box">
+          <div class="rlbl">Room code — text to friends 📱</div>
+          <div class="rcode" id="roomCodeEl">------</div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="shareCode()">Copy & share via iMessage</button>
+        </div>
+        <div class="plist" id="plist"></div>
+        <div class="sbar" id="sbar">Waiting for players...</div>
+        <button class="btn btn-fire" id="startBtn" style="display:none" onclick="startGame()">Deal the cards 🃏</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="openPanel('instrPanel')">How to play Hearts</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetConfig()">Change Supabase settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="gameScreen">
+  <div class="g-header">
+    <div class="g-title">♥ Hearts — Round <span id="gRound">1</span></div>
+    <div class="g-btns">
+      <button class="gb" onclick="openPanel('instrPanel')">Rules</button>
+      <button class="gb" onclick="openScorePanel()">Scores</button>
+    </div>
+  </div>
+  <div class="sstrip" id="sstrip"></div>
+  <div class="turn-banner" id="turnBanner"></div>
+  <div class="trick-zone">
+    <div class="tz-lbl" id="tzLbl">—</div>
+    <div class="tz-cards" id="tzCards"></div>
+  </div>
+  <div class="pass-bar" id="passBanner" style="display:none">
+    <div class="pb-t" id="pbTitle">Pass 3 cards</div>
+    <div class="pb-s" id="pbSub"></div>
+    <div class="pb-c" id="pbCount">0 of 3 selected</div>
+  </div>
+  <div class="hand-zone">
+    <div class="hz-lbl" id="hzLbl">Your hand</div>
+    <div class="hz-cards" id="hzCards"></div>
+  </div>
+  <div class="action-bar" id="actionBar"></div>
+</div>
+
+</div><!-- #app -->
+
+<!-- PANELS -->
+<div class="panel" id="scorePanel" onclick="if(event.target===this)closePanel('scorePanel')">
+  <div class="pbox">
+    <button class="pcls" onclick="closePanel('scorePanel')">Close</button>
+    <h2>Scoreboard</h2>
+    <div id="scorePanelBody"></div>
+  </div>
+</div>
+
+<div class="panel" id="instrPanel" onclick="if(event.target===this)closePanel('instrPanel')">
+  <div class="pbox">
+    <button class="pcls" onclick="closePanel('instrPanel')">Close</button>
+    <h2>How to play Hearts</h2>
+    <div class="isec"><h3>Goal</h3><p>Avoid hearts (1 pt each) and the Queen of Spades (13 pts). Lowest score when someone hits 100 wins!</p></div>
+    <div class="isec"><h3>Passing cards each round</h3><ul><li>Round 1: pass 3 cards left →</li><li>Round 2: pass 3 cards ← right</li><li>Round 3: pass 3 cards ↔ across</li><li>Round 4: no passing (hold)</li><li>Cycle repeats</li></ul></div>
+    <div class="isec"><h3>Playing tricks</h3><ul><li>Player with 2♣ leads the first trick</li><li>You must follow suit if you can</li><li>Hearts can't lead until "broken" (played on a trick)</li><li>No point cards on the very first trick</li><li>Highest card of led suit wins the trick</li></ul></div>
+    <div class="isec"><h3>🌙 Shooting the moon</h3><p>Take ALL 13 hearts + the Queen of Spades and everyone else gets +26 instead of you. Big risk, big reward!</p></div>
+    <div class="isec"><h3>Winning</h3><p>Play until someone reaches 100 points. The player with the <b>lowest score</b> wins!</p></div>
+    <button class="btn btn-ghost" onclick="closePanel('instrPanel')" style="margin-top:8px">Got it!</button>
+  </div>
+</div>
+
+<div class="panel" id="roundEndPanel">
+  <div class="pbox">
+    <h2 id="reTitle">Round Results</h2>
+    <div id="reBody"></div>
+    <button class="btn btn-fire" id="reNextBtn" style="margin-top:14px">Next round ▶</button>
+  </div>
+</div>
+
+<div class="panel" id="gameOverPanel">
+  <div class="pbox">
+    <div class="winner-box">
+      <span class="trophy">🏆</span>
+      <h2 id="goName">Winner!</h2>
+      <p style="color:rgba(245,220,150,.55);font-size:14px;margin-top:4px" id="goSub"></p>
+    </div>
+    <div id="goBody"></div>
+    <button class="btn btn-gold" onclick="backToLobby()" style="margin-top:16px">Play again 🔥</button>
+  </div>
+</div>
+
+<script>
+/* ══════ FIRE ANIMATION ══════ */
+(()=>{
+  const cv=document.getElementById('fireCanvas'),ctx=cv.getContext('2d');
+  let W,H;
+  const resize=()=>{W=cv.width=innerWidth;H=cv.height=innerHeight;};
+  resize();addEventListener('resize',resize);
+  const fx=()=>W/2, fy=()=>H*0.775;
+  class P{
+    constructor(){this.r()}
+    r(){
+      this.x=fx()+(Math.random()-.5)*56;
+      this.y=fy()+Math.random()*8;
+      this.vx=(Math.random()-.5)*1.1;
+      this.vy=-(1.6+Math.random()*3.4);
+      this.life=1;this.dec=.011+Math.random()*.019;
+      this.sz=7+Math.random()*20;
+      this.ember=Math.random()>.62;
+    }
+    update(){
+      this.x+=this.vx+Math.sin(this.y*.038)*.35;
+      this.y+=this.vy;this.vy*=.993;
+      this.life-=this.dec;this.sz*=.994;
+      if(this.life<=0)this.r();
+    }
+    draw(){
+      ctx.save();ctx.globalAlpha=Math.max(0,this.life)*.88;
+      if(this.ember){
+        ctx.fillStyle=`rgba(255,${Math.floor(80+this.life*140)},10,1)`;
+        ctx.beginPath();ctx.arc(this.x,this.y,Math.max(.8,this.sz*.16),0,Math.PI*2);ctx.fill();
+      } else {
+        const t=this.life;
+        const g=t>.65?Math.floor(50+t*130):Math.floor(20+t*160);
+        const gr=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.sz);
+        gr.addColorStop(0,`rgba(255,${g},0,.95)`);
+        gr.addColorStop(.45,`rgba(255,${Math.floor(g*.6)},0,.5)`);
+        gr.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=gr;
+        ctx.beginPath();ctx.ellipse(this.x,this.y,this.sz*.52,this.sz,0,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+  class Sp{
+    constructor(){this.r()}
+    r(){this.x=fx()+(Math.random()-.5)*28;this.y=fy()-18;this.vx=(Math.random()-.5)*2.8;this.vy=-(1+Math.random()*4.5);this.life=1;this.dec=.007+Math.random()*.016;this.sz=1.4+Math.random()*2.6;}
+    update(){this.x+=this.vx;this.vx*=.975;this.y+=this.vy;this.vy+=.045;this.life-=this.dec;if(this.life<=0)this.r();}
+    draw(){ctx.save();ctx.globalAlpha=Math.max(0,this.life);ctx.fillStyle=`rgba(255,${Math.floor(150+this.life*90)},30,1)`;ctx.beginPath();ctx.arc(this.x,this.y,this.sz,0,Math.PI*2);ctx.fill();ctx.restore();}
+  }
+  const parts=Array.from({length:130},()=>new P());
+  const sparks=Array.from({length:32},()=>new Sp());
+  const loop=()=>{
+    ctx.clearRect(0,0,W,H);
+    const g=ctx.createRadialGradient(fx(),fy(),0,fx(),fy()+25,170);
+    g.addColorStop(0,'rgba(210,55,5,.3)');g.addColorStop(.5,'rgba(180,35,0,.1)');g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    const g2=ctx.createRadialGradient(fx(),fy()-40,0,fx(),fy(),260);
+    g2.addColorStop(0,'rgba(255,70,0,.1)');g2.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g2;ctx.fillRect(0,0,W,H);
+    parts.forEach(p=>{p.update();p.draw();});
+    sparks.forEach(s=>{s.update();s.draw();});
+    requestAnimationFrame(loop);
+  };loop();
+})();
+
+/* ══════ GLOBALS ══════ */
+const SUITS={H:'♥',D:'♦',C:'♣',S:'♠'};
+const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const RV={};RANKS.forEach((r,i)=>RV[r]=i+2);
+const AVC=['av0','av1','av2','av3'];
+
+const BAKED_URL="https://yencnwzjlxojpdvpuppk.supabase.co";
+const BAKED_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbmNud3pqbHhvanBkdnB1cHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MDYwOTEsImV4cCI6MjA5ODA4MjA5MX0.3f0d2dvfsNgjs-6q4nalw4X1b6OxqEah71-GSehs608"; // supabase client
+let roomCode='',myId='',myName='',myIdx=-1;
+let G=null,myHand=[],selPass=[];
+let isDemo=false,pollTimer=null,lastTs=0;
+
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ══════ SUPABASE SETUP ══════ */
+function saveSupabase(){
+  const url=document.getElementById('sbUrl').value.trim();
+  const key=document.getElementById('sbKey').value.trim();
+  document.getElementById('cfgErr').textContent='';
+  if(!url.startsWith('https://')||!key.startsWith('eyJ')){
+    document.getElementById('cfgErr').textContent='Please paste both fields — URL starts with https:// and key starts with eyJ';
+    return;
+  }
+  localStorage.setItem('hf_sb',JSON.stringify({url,key}));
+  initSupabase(url,key);
+}
+function initSupabase(url,key){
+  document.getElementById('cfgSection').style.display='none';
+  document.getElementById('lobbySection').style.display='block';
+}
+function resetConfig(){
+  localStorage.removeItem('hf_sb');
+  document.getElementById('cfgSection').style.display='block';
+  document.getElementById('lobbySection').style.display='none';
+}
+function demoMode(){
+  isDemo=true;
+  document.getElementById('cfgSection').style.display='none';
+  document.getElementById('lobbySection').style.display='block';
+}
+function loadSaved(){
+  const s=localStorage.getItem('hf_sb');
+  if(s){try{const{url,key}=JSON.parse(s);initSupabase(url,key);return true;}catch(e){}}
+  return false;
+}
+
+/* ══════ LOBBY ══════ */
+const genCode=()=>Math.random().toString(36).slice(2,8).toUpperCase();
+const genId=()=>Math.random().toString(36).slice(2,14);
+
+async function hostGame(){
+  myName=document.getElementById('nameInp').value.trim()||'Host';
+  if(!myName){showToast('Enter your name first');return;}
+  showToast('Creating room...');
+  myId=genId();roomCode=genCode();myIdx=0;
+  if(!isDemo){
+    try{
+      const state=buildLobbyState([{id:myId,name:myName,joinedAt:Date.now()}]);
+      const{error}=await sbUpsert(roomCode,state);
+      if(error){
+        console.error('Host error:',error);
+        showToast('❌ '+error.message);
+        document.getElementById('connStatus').textContent='❌ '+error.message;
+        document.getElementById('connStatus').style.color='#ff8888';
+        return;
+      }
+      showRoom(state);
+      startPoll();
+    }catch(e){
+      console.error('Host catch:',e);
+      showToast('❌ '+e.message);
+      return;
+    }
+  } else {
+    const state=buildLobbyState([{id:myId,name:myName,joinedAt:Date.now()}]);
+    showRoom(state);
+  }
+}
+async function joinGame(){
+  myName=document.getElementById('nameInp').value.trim()||'Player';
+  myId=genId();
+  const code=document.getElementById('codeInp').value.trim().toUpperCase();
+  if(!code){showToast('Enter a room code');return;}
+  if(isDemo){showToast('In demo mode — host a game');return;}
+  roomCode=code;
+  const {data,error}=await sbGet(code);
+  if(error||!data){showToast('Room not found — check the code');return;}
+  const st=data.state;
+  if(st.status==='playing'){showToast('Game already started');return;}
+  const players=st.players||[];
+  if(players.length>=4){showToast('Room full (max 4 players)');return;}
+  players.push({id:myId,name:myName,joinedAt:Date.now()});
+  myIdx=players.findIndex(p=>p.id===myId);
+  st.players=players;
+  await pushRoomState(st);
+  showRoom(st);
+  startPoll();
+}
+function buildLobbyState(players){return{status:'lobby',players,host:myId,ts:Date.now()};}
+async function pushRoomState(st){
+  if(isDemo)return;
+  st.ts=Date.now();
+  const{error:pe}=await sbUpsert(roomCode,st);if(pe)console.error('push error',pe);
+}
+function showRoom(st){
+  document.getElementById('roomCodeEl').textContent=roomCode;
+  document.getElementById('roomBox').style.display='block';
+  renderLobbyPlayers(st.players||[]);
+  const isHost=st.host===myId||isDemo;
+  document.getElementById('startBtn').style.display=(isHost&&(st.players||[]).length>=2)?'block':'none';
+  if(isDemo)document.getElementById('startBtn').style.display='block';
+}
+function renderLobbyPlayers(players){
+  const el=document.getElementById('plist');el.innerHTML='';
+  players.forEach((p,i)=>{
+    el.innerHTML+=`<div class="prow"><div class="av ${AVC[i]}">${esc(p.name[0]||'?')}</div><div class="pi"><div class="pn">${esc(p.name)}</div><div class="ps">${i===0?'Host 👑':'Player '+(i+1)}</div></div><div class="dot"></div></div>`;
+  });
+}
+function shareCode(){
+  const msg=`Hey! Join my Hearts card game 🔥\nRoom code: ${roomCode}\nOpen the game file and enter this code!`;
+  if(navigator.share)navigator.share({title:'Hearts by the Fire',text:msg}).catch(()=>{});
+  else if(navigator.clipboard)navigator.clipboard.writeText(msg).then(()=>showToast('Copied! Paste into iMessage 📱'));
+  else showToast('Room code: '+roomCode);
+}
+
+/* ══════ POLLING ══════ */
+function startPoll(){
+  clearInterval(pollTimer);
+  pollTimer=setInterval(async()=>{
+    if(!SB||!roomCode)return;
+    const{data}=await sbGet(roomCode);
+    if(!data)return;
+    const st=data.state;
+    if(!st||st.ts===lastTs)return;
+    lastTs=st.ts;
+    if(st.status==='lobby'){
+      myIdx=(st.players||[]).findIndex(p=>p.id===myId);
+      showRoom(st);
+    } else if(st.status==='playing'){
+      clearInterval(pollTimer);
+      G=st;myHand=(G.hands&&G.hands[myId])||[];selPass=[];
+      showScreen('gameScreen');renderGame();startGamePoll();
+    }
+  },2000);
+}
+function startGamePoll(){
+  clearInterval(pollTimer);
+  pollTimer=setInterval(async()=>{
+    if(!SB||!roomCode)return;
+    const{data}=await sbGet(roomCode);
+    if(!data)return;
+    const st=data.state;
+    if(!st||st.ts===lastTs)return;
+    lastTs=st.ts;
+    G=st;myHand=(G.hands&&G.hands[myId])||[];selPass=[];
+    renderGame();
+    if(G.phase==='roundEnd')showRoundEnd();
+    runAIIfNeeded();
+  },1500);
+}
+
+/* ══════ GAME START ══════ */
+function makeDeck(){const d=[];for(const s of['H','D','C','S'])for(const r of RANKS)d.push(s+r);return d;}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+async function startGame(){
+  let players;
+  if(isDemo){
+    players=[{id:myId,name:myName||'You',joinedAt:0}];
+    const aiNames=['Luna','River','Sage'];
+    while(players.length<4)players.push({id:'ai'+players.length,name:aiNames[players.length-1],isAI:true,joinedAt:players.length});
+  } else {
+    const{data}=await sbGet(roomCode);
+    players=[...(data.state.players||[])];
+    const aiNames=['Luna','River','Sage'];
+    while(players.length<4)players.push({id:'ai'+players.length,name:aiNames[players.length-1],isAI:true,joinedAt:Date.now()+players.length});
+  }
+  
+  const deck=shuffle(makeDeck());
+  const n=players.length,pp=Math.floor(deck.length/n);
+  const hands={};
+  players.forEach((p,i)=>hands[p.id]=deck.slice(i*pp,(i+1)*pp));
+  
+  G={
+    status:'playing',players,hands,
+    scores:Object.fromEntries(players.map(p=>[p.id,0])),
+    tricksTaken:Object.fromEntries(players.map(p=>[p.id,[]])),
+    round:1,passType:'left',phase:'pass',passedCards:{},
+    trick:[],trickLeader:0,currentPlayer:0,trickCount:0,heartsBroken:false,
+    host:myId,ts:Date.now()
+  };
+  
+  myHand=G.hands[myId]||[];selPass=[];
+  lastTs=G.ts;
+  
+  if(isDemo){showScreen('gameScreen');renderGame();runAIIfNeeded();}
+  else{await pushRoomState(G);showScreen('gameScreen');renderGame();startGamePoll();}
+}
+
+async function syncState(){
+  G.ts=Date.now();lastTs=G.ts;
+  if(isDemo){renderGame();setTimeout(runAIIfNeeded,60);}
+  else await pushRoomState(G);
+}
+
+/* ══════ RENDER ══════ */
+const parseCard=c=>({suit:c[0],rank:c.slice(1),val:RV[c.slice(1)]||0});
+
+function renderGame(){
+  if(!G)return;
+  document.getElementById('gRound').textContent=G.round||1;
+  renderStrip();renderTrick();renderHand();renderTurnBanner();renderActionBar();
+}
+
+function renderStrip(){
+  const el=document.getElementById('sstrip');el.innerHTML='';
+  (G.players||[]).forEach((p,i)=>{
+    const sc=G.scores[p.id]||0,tr=(G.tricksTaken[p.id]||[]).length;
+    const isCur=i===G.currentPlayer;
+    el.innerHTML+=`<div class="sp${isCur?' myturn':''}${sc>=80?' danger':''}"><div class="sn">${esc(p.name)}</div><div class="ss">${sc}</div><div class="st">${tr} tricks</div></div>`;
+  });
+}
+
+function renderTurnBanner(){
+  const el=document.getElementById('turnBanner');
+  if(G.phase==='pass'){el.textContent='Select 3 cards to pass '+G.passType;el.className='turn-banner';return;}
+  if(G.phase==='roundEnd'){el.textContent='Round over!';el.className='turn-banner';return;}
+  const cp=G.players[G.currentPlayer];if(!cp)return;
+  if(cp.id===myId){el.textContent='Your turn — tap a card to play';el.className='turn-banner';}
+  else{el.innerHTML=`<span class="dots">${esc(cp.name)} is thinking<span>.</span><span>.</span><span>.</span></span>`;el.className='turn-banner wait';}
+}
+
+function renderTrick(){
+  const tz=document.getElementById('tzCards'),lbl=document.getElementById('tzLbl');
+  tz.innerHTML='';
+  if(!G.trick||!G.trick.length){
+    const cp=G.players[G.currentPlayer];
+    lbl.textContent=G.phase==='pass'?'Cards will appear here':(cp?esc(cp.name)+' leads':'Waiting...');
+    return;
+  }
+  const led=parseCard(G.trick[0].card).suit;
+  lbl.textContent='Trick '+(G.trickCount+1)+' — led '+SUITS[led];
+  G.trick.forEach(t=>{
+    const p=G.players[t.player];
+    const w=document.createElement('div');w.className='pcw';
+    w.innerHTML=`<div class="pcw-name">${esc(p?p.name:'')}</div>`;
+    w.appendChild(makeCardEl(t.card));tz.appendChild(w);
+  });
+}
+
+function renderHand(){
+  const el=document.getElementById('hzCards'),lbl=document.getElementById('hzLbl');
+  el.innerHTML='';lbl.textContent=(myName||'Your')+"'s hand ("+myHand.length+' cards)';
+  
+  const sorted=sortHand(myHand);
+  const passedAlready=G.passedCards&&G.passedCards[myId];
+  
+  sorted.forEach(c=>{
+    const playable=G.phase==='pass'?true:isPlayable(c,myIdx);
+    const inSel=selPass.includes(c);
+    const cel=makeCardEl(c,()=>{
+      if(G.phase==='pass'&&!passedAlready)togglePass(c);
+      else if(G.currentPlayer===myIdx&&G.players[myIdx]&&G.players[myIdx].id===myId&&G.phase==='play')doPlayCard(c);
+    },(!playable&&G.phase!=='pass')?'dead':'');
+    if(inSel)cel.classList.add('sel');
+    el.appendChild(cel);
+  });
+  
+  const pb=document.getElementById('passBanner');
+  if(G.phase==='pass'&&!passedAlready){
+    pb.style.display='block';
+    const dirs={left:'→ left',right:'← right',across:'↔ across',hold:'(no passing this round)'};
+    document.getElementById('pbTitle').textContent='Pass 3 cards '+(dirs[G.passType]||G.passType);
+    document.getElementById('pbSub').textContent='Tap cards in your hand to select';
+    document.getElementById('pbCount').textContent=selPass.length+' of 3 selected';
+  } else pb.style.display='none';
+}
+
+function renderActionBar(){
+  const bar=document.getElementById('actionBar');bar.innerHTML='';
+  if(G.phase==='pass'&&!(G.passedCards&&G.passedCards[myId])&&myHand.length>0){
+    const btn=document.createElement('button');
+    btn.className='btn btn-fire';btn.style.maxWidth='260px';
+    btn.textContent='Pass selected cards';
+    btn.style.opacity=selPass.length===3?'1':'0.45';
+    btn.disabled=selPass.length!==3;
+    btn.onclick=confirmPass;
+    bar.appendChild(btn);
+  }
+}
+
+/* ══════ CARD ELS ══════ */
+const sortHand=hand=>[...hand].sort((a,b)=>{
+  const so=['C','D','S','H'],ca=parseCard(a),cb=parseCard(b);
+  return so.indexOf(ca.suit)-so.indexOf(cb.suit)||ca.val-cb.val;
+});
+function makeCardEl(cstr,clickFn,extra=''){
+  const c=parseCard(cstr);const isRed=c.suit==='H'||c.suit==='D';
+  const el=document.createElement('div');
+  el.className='pc '+(isRed?'red':'black')+(extra?' '+extra:'');
+  el.innerHTML=`<div class="pc-t">${c.rank}<br>${SUITS[c.suit]}</div><div class="pc-m">${SUITS[c.suit]}</div><div class="pc-b">${c.rank}<br>${SUITS[c.suit]}</div>`;
+  if(clickFn)el.addEventListener('click',clickFn);
+  return el;
+}
+
+/* ══════ PASS LOGIC ══════ */
+function togglePass(c){
+  const i=selPass.indexOf(c);
+  if(i>=0)selPass.splice(i,1);
+  else if(selPass.length<3)selPass.push(c);
+  renderHand();renderActionBar();
+}
+function passTarget(fi){
+  const n=G.players.length;
+  if(G.passType==='left')return(fi+1)%n;
+  if(G.passType==='right')return(fi-1+n)%n;
+  if(G.passType==='across')return(fi+Math.floor(n/2))%n;
+  return fi;
+}
+async function confirmPass(){
+  if(selPass.length!==3)return;
+  if(!G.passedCards)G.passedCards={};
+  G.passedCards[myId]=selPass.slice();
+  selPass.forEach(c=>{G.hands[myId]=G.hands[myId].filter(h=>h!==c);});
+  
+  // AI passes
+  G.players.forEach((p,i)=>{
+    if(p.isAI&&!G.passedCards[p.id]){
+      const h=[...G.hands[p.id]].sort((a,b)=>parseCard(b).val-parseCard(a).val);
+      const tp=h.slice(0,3);
+      G.passedCards[p.id]=tp;
+      tp.forEach(c=>{G.hands[p.id]=G.hands[p.id].filter(h2=>h2!==c);});
+    }
+  });
+  
+  // Check all passed
+  if(G.players.every(p=>G.passedCards[p.id])){
+    G.players.forEach((p,i)=>{
+      const tid=G.players[passTarget(i)].id;
+      G.passedCards[p.id].forEach(c=>G.hands[tid].push(c));
+    });
+    G.passedCards={};G.phase='play';findFirstLeader();
+  }
+  
+  myHand=G.hands[myId]||[];selPass=[];
+  await syncState();
+}
+function findFirstLeader(){
+  G.players.forEach((p,i)=>{if((G.hands[p.id]||[]).includes('C2')){G.trickLeader=i;G.currentPlayer=i;}});
+}
+
+/* ══════ PLAY LOGIC ══════ */
+function isPlayable(cstr,pidx){
+  const c=parseCard(cstr),p=G.players[pidx],hand=G.hands[p.id]||[],trick=G.trick||[];
+  if(trick.length===0){
+    if(G.trickCount===0)return c.suit==='C'&&c.rank==='2';
+    if(c.suit==='H'&&!G.heartsBroken)return hand.every(h=>parseCard(h).suit==='H');
+    return true;
+  }
+  const ls=parseCard(trick[0].card).suit;
+  const has=hand.some(h=>parseCard(h).suit===ls);
+  if(has)return c.suit===ls;
+  if(G.trickCount===0){
+    const safe=hand.some(h=>{const hc=parseCard(h);return hc.suit!=='H'&&!(hc.suit==='S'&&hc.rank==='Q');});
+    if(safe)return!(c.suit==='H'||(c.suit==='S'&&c.rank==='Q'));
+  }
+  return true;
+}
+async function doPlayCard(cstr){
+  if(G.phase!=='play'||G.players[G.currentPlayer].id!==myId)return;
+  if(!isPlayable(cstr,myIdx))return;
+  G.hands[myId]=G.hands[myId].filter(h=>h!==cstr);
+  myHand=G.hands[myId];
+  G.trick.push({player:myIdx,card:cstr});
+  const c=parseCard(cstr);
+  if(c.suit==='H')G.heartsBroken=true;
+  if(c.suit==='S'&&c.rank==='Q')G.heartsBroken=true;
+  if(G.trick.length===G.players.length){
+    await syncState();setTimeout(evalTrick,500);
+  } else {
+    G.currentPlayer=(G.currentPlayer+1)%G.players.length;
+    await syncState();
+  }
+}
+function runAIIfNeeded(){
+  if(!G||G.phase!=='play')return;
+  const cp=G.players[G.currentPlayer];
+  if(!cp||!cp.isAI)return;
+  if(!isDemo&&G.host!==myId)return;
+  setTimeout(async()=>{
+    if(!G||G.phase!=='play')return;
+    const cp2=G.players[G.currentPlayer];if(!cp2||!cp2.isAI)return;
+    const hand=G.hands[cp2.id]||[];
+    const playable=hand.filter(c=>isPlayable(c,G.currentPlayer));
+    if(!playable.length)return;
+    let card;const trick=G.trick||[];
+    if(!trick.length){
+      const safe=playable.filter(c=>{const cc=parseCard(c);return cc.suit!=='H'&&!(cc.suit==='S'&&cc.rank==='Q');});
+      card=(safe.length?safe:playable)[Math.floor(Math.random()*(safe.length||playable.length))];
+    } else {
+      const ls=parseCard(trick[0].card).suit;
+      const fol=playable.filter(c=>parseCard(c).suit===ls);
+      if(fol.length){
+        const safe=fol.filter(c=>{const cc=parseCard(c);return!(cc.suit==='H'||(cc.suit==='S'&&cc.rank==='Q'));});
+        card=(safe.length?safe:fol).sort((a,b)=>parseCard(b).val-parseCard(a).val)[0];
+      } else {
+        const dump=playable.filter(c=>{const cc=parseCard(c);return cc.suit==='H'||(cc.suit==='S'&&cc.rank==='Q');});
+        card=dump.length?dump[0]:playable.sort((a,b)=>parseCard(b).val-parseCard(a).val)[0];
+      }
+    }
+    G.hands[cp2.id]=(G.hands[cp2.id]||[]).filter(h=>h!==card);
+    G.trick.push({player:G.currentPlayer,card});
+    const cc=parseCard(card);
+    if(cc.suit==='H')G.heartsBroken=true;
+    if(cc.suit==='S'&&cc.rank==='Q')G.heartsBroken=true;
+    if(G.trick.length===G.players.length){await syncState();setTimeout(evalTrick,500);}
+    else{G.currentPlayer=(G.currentPlayer+1)%G.players.length;await syncState();}
+  },700+Math.random()*700);
+}
+async function evalTrick(){
+  if(!G||!G.trick||G.trick.length<G.players.length)return;
+  if(!isDemo&&G.host!==myId)return;
+  const ls=parseCard(G.trick[0].card).suit;
+  let win=G.trick[0];
+  G.trick.forEach(t=>{const c=parseCard(t.card);if(c.suit===ls&&c.val>parseCard(win.card).val)win=t;});
+  const wp=G.players[win.player];
+  if(!G.tricksTaken[wp.id])G.tricksTaken[wp.id]=[];
+  G.trick.forEach(t=>G.tricksTaken[wp.id].push(t.card));
+  G.trickCount++;G.trick=[];G.trickLeader=win.player;G.currentPlayer=win.player;
+  showToast(wp.name+' wins the trick');
+  if(G.players.every(p=>(G.hands[p.id]||[]).length===0))endRound();
+  else await syncState();
+}
+const ptIn=cards=>(cards||[]).reduce((s,c)=>{const cc=parseCard(c);if(cc.suit==='H')return s+1;if(cc.suit==='S'&&cc.rank==='Q')return s+13;return s;},0);
+
+async function endRound(){
+  const raw={};G.players.forEach(p=>raw[p.id]=ptIn(G.tricksTaken[p.id]||[]));
+  const moon=G.players.find(p=>raw[p.id]===26);
+  if(moon)G.players.forEach(p=>raw[p.id]=(p.id===moon.id?0:26));
+  G.players.forEach(p=>G.scores[p.id]=(G.scores[p.id]||0)+raw[p.id]);
+  G.lastRoundPts=raw;G.moonShooter=moon?moon.id:null;G.phase='roundEnd';
+  await syncState();showRoundEnd();
+}
+function showRoundEnd(){
+  document.getElementById('reTitle').textContent='Round '+G.round+' results';
+  let html='';
+  if(G.moonShooter){const mp=G.players.find(p=>p.id===G.moonShooter);html+=`<div class="moon-msg">🌙 ${esc(mp?mp.name:'?')} shot the moon! Everyone else +26</div>`;}
+  html+='<div>';
+  G.players.forEach(p=>{const pts=(G.lastRoundPts||{})[p.id]||0;html+=`<div class="re-row"><span>${esc(p.name)}</span><span style="color:${pts>0?'#f09090':'#80d880'}">+${pts} → <b style="color:var(--gold)">${G.scores[p.id]}</b></span></div>`;});
+  html+='</div>';
+  document.getElementById('reBody').innerHTML=html;
+  const isOver=Math.max(...G.players.map(p=>G.scores[p.id]))>=100;
+  const btn=document.getElementById('reNextBtn');
+  btn.textContent=isOver?'See final scores 🏆':'Next round ▶';
+  btn.onclick=isOver?showGameOver:nextRound;
+  document.getElementById('roundEndPanel').classList.add('open');
+}
+async function nextRound(){
+  closePanel('roundEndPanel');
+  if(!isDemo&&G.host!==myId)return;
+  G.round=(G.round||1)+1;
+  const pt=['left','right','across','hold'];G.passType=pt[(G.round-1)%4];
+  const deck=shuffle(makeDeck());const n=G.players.length,pp=Math.floor(deck.length/n);
+  G.players.forEach((p,i)=>G.hands[p.id]=deck.slice(i*pp,(i+1)*pp));
+  G.tricksTaken=Object.fromEntries(G.players.map(p=>[p.id,[]]));
+  G.trick=[];G.trickCount=0;G.heartsBroken=false;G.passedCards={};G.lastRoundPts=null;G.moonShooter=null;
+  G.phase=G.passType==='hold'?'play':'pass';
+  if(G.phase==='play')findFirstLeader();
+  myHand=G.hands[myId]||[];selPass=[];
+  await syncState();
+}
+function showGameOver(){
+  closePanel('roundEndPanel');
+  const sorted=[...G.players].sort((a,b)=>G.scores[a.id]-G.scores[b.id]);
+  const w=sorted[0];
+  document.getElementById('goName').textContent=w.name+(w.id===myId?' — that\'s you! 🎉':' wins!');
+  document.getElementById('goSub').textContent='Lowest score: '+G.scores[w.id]+' pts';
+  let html='<table class="stbl"><thead><tr><th>Player</th><th>Score</th></tr></thead><tbody>';
+  sorted.forEach((p,i)=>html+=`<tr${i===0?' class="lead"':''}><td>${esc(p.name)}</td><td>${G.scores[p.id]}</td></tr>`);
+  html+='</tbody></table>';
+  document.getElementById('goBody').innerHTML=html;
+  document.getElementById('gameOverPanel').classList.add('open');
+}
+function backToLobby(){
+  closePanel('gameOverPanel');clearInterval(pollTimer);
+  G=null;myHand=[];selPass=[];
+  document.getElementById('roomBox').style.display='none';
+  showScreen('setupScreen');
+}
+function openScorePanel(){
+  if(!G)return;
+  const sorted=[...G.players].sort((a,b)=>G.scores[a.id]-G.scores[b.id]);
+  let html='<table class="stbl"><thead><tr><th>Player</th><th>Score</th><th>Tricks</th></tr></thead><tbody>';
+  sorted.forEach((p,i)=>html+=`<tr${i===0?' class="lead"':''}><td>${esc(p.name)}</td><td>${G.scores[p.id]}</td><td>${(G.tricksTaken[p.id]||[]).length}</td></tr>`);
+  html+='</tbody></table><p style="font-size:12px;color:rgba(245,220,150,.4);text-align:center;margin-top:8px">Game ends when someone hits 100 pts</p>';
+  document.getElementById('scorePanelBody').innerHTML=html;
+  openPanel('scorePanel');
+}
+function openPanel(id){document.getElementById(id).classList.add('open');}
+function closePanel(id){document.getElementById(id).classList.remove('open');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+let _tt;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hide');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.add('hide'),2300);}
+
+document.getElementById('codeInp').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase());
+// Native Supabase REST API - no library needed
+const SB_URL=BAKED_URL;
+const SB_KEY=BAKED_KEY;
+
+async function sbGet(code){
+  const r=await fetch(SB_URL+'/rest/v1/rooms?code=eq.'+encodeURIComponent(code)+'&select=state&limit=1',{
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'}
+  });
+  if(!r.ok)return{data:null,error:{message:'HTTP '+r.status+' '+await r.text()}};
+  const arr=await r.json();
+  return{data:arr[0]||null,error:null};
+}
+async function sbUpsert(code,state){
+  const r=await fetch(SB_URL+'/rest/v1/rooms',{
+    method:'POST',
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify({code,state,updated_at:new Date().toISOString()})
+  });
+  if(!r.ok)return{error:{message:'HTTP '+r.status+' '+await r.text()}};
+  return{error:null};
+}
+
+document.getElementById("cfgSection").style.display="none";
+document.getElementById("lobbySection").style.display="block";
+
+// Test connection
+(async()=>{
+  const el=document.getElementById('connStatus');
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/rooms?limit=1',{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    });
+    if(r.status===401){el.textContent='❌ Invalid API key';el.style.color='#ff8888';}
+    else if(r.status===404||r.status===400){
+      const t=await r.text();
+      if(t.includes('rooms')){el.textContent='⚠️ Table missing — run the SQL setup in Supabase SQL Editor';el.style.color='#ffaa44';}
+      else{el.textContent='⚠️ Error: '+t;el.style.color='#ffaa44';}
+    }
+    else if(r.ok){el.textContent='✅ Connected — ready to play!';el.style.color='#88ee88';setTimeout(()=>el.textContent='',3000);}
+    else{el.textContent='⚠️ Status '+r.status;el.style.color='#ffaa44';}
+  }catch(e){el.textContent='❌ Network error: '+e.message;el.style.color='#ff8888';}
+})();
+</script>
+</body>
+</html>
