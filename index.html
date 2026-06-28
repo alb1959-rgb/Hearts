@@ -1462,13 +1462,10 @@ function openScorePanel(){
   html+='</tbody></table>';
   document.getElementById('scorePanelBody').innerHTML=html;openPanel('scorePanel');
 }
-function backToLobby(){
-  clearInterval(pollTimer);G=null;myHand=[];selPass=[];ginDrawn=false;ginSelected=null;
-  showScreen('menuScreen');
-}
+/* backToLobby defined below */
 function openPanel(id){document.getElementById(id).classList.add('open');}
 function closePanel(id){document.getElementById(id).classList.remove('open');}
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+/* showScreen defined below */
 let _tt;function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hide');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.add('hide'),2500);}
 
 document.getElementById('codeInp').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase());
