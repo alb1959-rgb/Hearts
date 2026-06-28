@@ -18,7 +18,7 @@ html,body{height:100%;overflow:hidden;background:#2a1200;font-family:-apple-syst
 .screen{display:none;width:100%;height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 40px}
 .screen.active{display:flex}
 #menuScreen{padding:0}
-#gameScreen,#bjScreen,#ginScreen{justify-content:flex-start;padding:0;background:rgba(10,4,0,.42)}
+#gameScreen,#bjScreen,#ginScreen{justify-content:flex-start;padding:0;background:rgba(10,4,0,.42);align-items:stretch;overflow-y:auto;-webkit-overflow-scrolling:touch}
 
 /* MENU layout */
 .menu-topbar{display:flex;align-items:center;padding:20px 28px 8px;flex-shrink:0}
@@ -98,7 +98,7 @@ select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.
 .tz-cards{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;min-height:88px;align-items:center}
 .pcw{display:flex;flex-direction:column;align-items:center;gap:3px}
 .pcw-name{font-size:10px;color:rgba(255,240,200,.5);max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
-.hand-zone{margin:0 10px 8px;background:rgba(10,4,0,.38);border:1px solid rgba(255,180,40,.14);border-radius:18px;padding:10px;flex-shrink:0}
+.hand-zone{margin:0 10px 8px;background:rgba(10,4,0,.38);border:1px solid rgba(255,180,40,.14);border-radius:18px;padding:10px}
 .hz-lbl{font-size:11px;color:rgba(255,240,200,.45);margin-bottom:8px;font-weight:600}
 .hz-cards{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 .pass-bar{margin:0 10px 8px;background:rgba(0,0,80,.22);border:1px solid rgba(100,140,255,.22);border-radius:14px;padding:10px;text-align:center;flex-shrink:0}
@@ -351,7 +351,13 @@ select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.
 <div class="panel" id="instrPanel"><div class="pbox"><button class="pcls" id="instrClose">Close</button><h2 id="instrTitle">How to Play</h2><div id="instrBody"></div><button class="btn btn-ghost" id="instrGotIt" style="margin-top:12px">Got it!</button></div></div>
 <div class="panel" id="roundEndPanel"><div class="pbox"><h2 id="reTitle">Round Results</h2><div id="reBody"></div><button class="btn btn-fire" id="reNextBtn" style="margin-top:14px">Next Round &#x25B6;</button></div></div>
 <div class="panel" id="gameOverPanel"><div class="pbox"><div class="winner-box"><span class="trophy">&#x1F3C6;</span><h2 id="goName">Winner!</h2><p style="color:rgba(255,240,200,.6);font-size:14px;margin-top:4px" id="goSub"></p></div><div id="goBody"></div><button class="btn btn-gold" id="playAgainBtn" style="margin-top:16px">Play Again &#x1F525;</button></div></div>
-<div class="panel" id="sharePanel"><div class="pbox"><button class="pcls" id="sharePanelClose">Close</button><h2>&#x1F4E4; Invite Friends</h2><div class="share-box"><div style="font-size:12px;color:rgba(255,240,200,.55);margin-bottom:4px">Game URL:</div><div style="font-size:14px;font-weight:700;color:#ffd700;margin-bottom:12px">https://alb1959-rgb.github.io/Hearts/</div><div style="font-size:12px;color:rgba(255,240,200,.55);margin-bottom:4px">Room Code:</div><div style="font-size:32px;font-weight:900;color:#ffd700;letter-spacing:8px" id="shareCodeDisplay">------</div></div><button class="btn btn-share" id="doShareBtn">&#x1F4F2; Share via iMessage / AirDrop</button><button class="btn btn-ghost btn-sm" id="copyInviteBtn" style="margin-top:4px">&#x1F4CB; Copy invite text</button><p style="font-size:12px;color:rgba(255,240,200,.45);text-align:center;margin-top:10px">Friends open the URL in Safari, enter the code, and join!</p></div></div>
+<div class="panel" id="sharePanel"><div class="pbox"><button class="pcls" id="sharePanelClose">Close</button><h2>&#x1F4E4; Invite Friends</h2><div class="share-box">
+  <div style="font-size:11px;color:rgba(255,240,200,.55);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Game URL — tap to copy</div>
+  <div style="font-size:14px;font-weight:700;color:#ffd700;margin-bottom:12px;cursor:pointer;text-decoration:underline" onclick="copyUrl()">https://alb1959-rgb.github.io/Hearts/</div>
+  <div style="font-size:11px;color:rgba(255,240,200,.55);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Room Code</div>
+  <div style="font-size:36px;font-weight:900;color:#ffd700;letter-spacing:10px;margin:4px 0" id="shareCodeDisplay">------</div>
+  <div style="font-size:12px;color:rgba(255,240,200,.5);margin-top:8px">Friends open the URL in Safari, then enter this code</div>
+</div><button class="btn btn-share" id="doShareBtn">&#x1F4F2; Share via iMessage / AirDrop</button><button class="btn btn-ghost btn-sm" id="copyInviteBtn" style="margin-top:4px">&#x1F4CB; Copy invite text</button><p style="font-size:12px;color:rgba(255,240,200,.45);text-align:center;margin-top:10px">Friends open the URL in Safari, enter the code, and join!</p></div></div>
 <div class="panel" id="musicPanel"><div class="pbox"><button class="pcls" id="musicClose">Close</button><h2>&#x1F3B5; Music</h2><div class="isec"><p>Play a "campfire" playlist in Spotify or Apple Music in the background while you game!</p></div><button class="btn btn-ghost" id="musicGotIt" style="margin-top:8px">Got it!</button></div></div>
 <div class="panel" id="settingsPanel"><div class="pbox"><button class="pcls" id="settingsClose">Close</button><h2>&#x2699;&#xFE0F; Settings</h2><div class="isec"><h3>Best experience</h3><ul><li>Add to Home Screen in Safari for full screen</li><li>Keep Safari open while playing</li><li>Landscape mode works best on iPad</li></ul></div><button class="btn btn-ghost" id="settingsDone" style="margin-top:8px">Done</button></div></div>
 <div class="panel" id="helpPanel"><div class="pbox"><button class="pcls" id="helpClose">Close</button><h2>&#x2753; Help</h2><div class="isec"><h3>How multiplayer works</h3><p>1. Tap a game and host.<br>2. Share the room code with friends.<br>3. Friends open the same URL, enter name &amp; code.<br>4. Host taps "Deal the Cards" to start.</p></div><div class="isec"><h3>Games</h3><ul><li>&#x2665;&#xFE0F; Hearts &mdash; avoid points, shoot the moon</li><li>&#x2660;&#xFE0F; Spades &mdash; bid tricks, score to 500</li><li>&#x1F0CF; Setback &mdash; pitch trump, score 4 pts</li><li>&#x1F378; Gin Rummy &mdash; meld, knock out</li><li>&#x1F3B0; Blackjack &mdash; beat the dealer to 21</li></ul></div><button class="btn btn-ghost" id="helpGotIt" style="margin-top:8px">Got it!</button></div></div>
@@ -421,15 +427,28 @@ window.addEventListener('DOMContentLoaded', function() {
     document.getElementById(id).onclick = function(e) { if (e.target === this) closePanel(id); };
   });
 
-  // Connection check
-  (async function() {
+  // Connection check — runs after DOM ready
+  setTimeout(async function() {
     var el = document.getElementById('connStatus');
+    if (!el) return;
     try {
-      var r = await fetch(SB_URL + '/rest/v1/rooms?limit=1', {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
-      if (r.ok) { el.textContent = '✅ Connected'; el.style.color = '#80ee80'; setTimeout(function(){el.textContent='';}, 3000); }
-      else { el.textContent = '⚠️ Connection issue'; el.style.color = '#ffaa44'; }
-    } catch(e) { el.textContent = '❌ No internet connection'; el.style.color = '#ff8888'; }
-  })();
+      var r = await fetch(SB_URL + '/rest/v1/rooms?limit=1', {
+        mode: 'cors',
+        headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY}
+      });
+      if (r.ok) {
+        el.textContent = '✅ Connected — ready to play!';
+        el.style.color = '#80ee80';
+        setTimeout(function(){el.textContent='';}, 3000);
+      } else {
+        el.textContent = '⚠️ Server issue (status ' + r.status + ')';
+        el.style.color = '#ffaa44';
+      }
+    } catch(e) {
+      el.textContent = '❌ No internet — check WiFi';
+      el.style.color = '#ff8888';
+    }
+  }, 500);
 });
 
 // ── GLOBALS ──────────────────────────────────────────────────────────────
@@ -491,8 +510,9 @@ async function hostGame() {
   document.getElementById('roomCodeEl').textContent = roomCode;
   document.getElementById('roomBox').style.display = 'block';
   document.getElementById('startBtn').style.display = 'block';
+  document.getElementById('startBtn').style.opacity = '1';
   renderLobbyPlayers([{id:myId,name:myName}]);
-  document.getElementById('sbar').textContent = 'Waiting for friends to join...';
+  document.getElementById('sbar').textContent = 'Share code: ' + roomCode + ' — tap Start when ready!';
   startPoll();
 }
 async function joinGame() {
@@ -1120,6 +1140,10 @@ function doShare(){
   var msg='Join my '+gameName(currentGame)+' game at Fire Pit Lounge! 🔥\nURL: '+GAME_URL+'\nRoom code: '+(roomCode||'------');
   if(navigator.share)navigator.share({title:'Fire Pit Lounge',text:msg}).catch(function(){});
   else if(navigator.clipboard)navigator.clipboard.writeText(msg).then(function(){showToast('Copied!');});
+}
+function copyUrl(){
+  if(navigator.clipboard)navigator.clipboard.writeText(GAME_URL).then(function(){showToast('URL copied! 📋');});
+  else showToast(GAME_URL);
 }
 function copyInvite(){
   var msg='Join my '+gameName(currentGame)+' game at Fire Pit Lounge! 🔥\nURL: '+GAME_URL+'\nRoom code: '+(roomCode||'------');
