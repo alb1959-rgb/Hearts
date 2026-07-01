@@ -654,7 +654,16 @@ function renderStrip() {
 function renderTurnBanner() {
   var el=document.getElementById('turnBanner');
   if(G.phase==='pass'){el.textContent='Select 3 cards to pass '+G.passType;el.className='turn-banner';return;}
-  if(G.phase==='bid'){el.textContent='Bidding phase';el.className='turn-banner';return;}
+  if(G.phase==='bid'){
+    var bidder=G.players[G.bidOrder||0];
+    el.textContent=bidder?(bidder.id===myId?'Your turn to bid':esc(bidder.name)+' is bidding...'):'Bidding phase';
+    el.className=bidder&&bidder.id===myId?'turn-banner':'turn-banner wait';return;
+  }
+  if(G.phase==='trump'){
+    var tp=G.players[G.currentPlayer];
+    el.textContent=tp?(tp.id===myId?'Tap a card of your chosen trump suit to set trump':esc(tp.name)+' is choosing trump...'):'Choosing trump';
+    el.className=tp&&tp.id===myId?'turn-banner':'turn-banner wait';return;
+  }
   if(G.phase==='roundEnd'){el.textContent='Round over!';el.className='turn-banner';return;}
   var cp=G.players[G.currentPlayer];if(!cp)return;
   if(cp.id===myId){el.textContent='Your turn — tap a card to play';el.className='turn-banner';}
@@ -672,13 +681,22 @@ function renderHand() {
   var sorted=sortHand(myHand);
   var passedAlready=G.passedCards&&G.passedCards[myId];
   sorted.forEach(function(c){
-    var playable=G.phase==='pass'?true:isPlayable(c,myIdx);
+    var playable;
+    if(G.phase==='pass')playable=true;
+    else if(G.game==='spades')playable=isSpadesPlayable(c,myIdx);
+    else if(G.game==='setback')playable=isSetbackPlayable(c,myIdx);
+    else playable=isPlayable(c,myIdx);
     var inSel=selPass.indexOf(c)>=0;
-    var extra=(!playable&&G.phase!=='play')?'':'';
+    var extra='';
     if(!playable&&G.phase==='play')extra='dead';
     var cel=makeCardEl(c,function(cc){return function(){
-      if(G.phase==='pass'&&!passedAlready)togglePass(cc);
-      else if(G.currentPlayer===myIdx&&G.players[myIdx]&&G.players[myIdx].id===myId&&G.phase==='play')doPlayCard(cc);
+      if(G.phase==='pass'&&!passedAlready){togglePass(cc);return;}
+      if(G.phase==='trump'&&G.players[G.currentPlayer]&&G.players[G.currentPlayer].id===myId){setTrump(parseCard(cc).suit);return;}
+      if(G.phase!=='play')return;
+      if(!G.players[G.currentPlayer]||G.players[G.currentPlayer].id!==myId)return;
+      if(G.game==='spades')doPlaySpades(cc);
+      else if(G.game==='setback')doPlaySetback(cc);
+      else doPlayCard(cc);
     };}(c),extra);
     if(inSel)cel.classList.add('sel');el.appendChild(cel);
   });
@@ -837,11 +855,31 @@ async function placeBid(n){
   if(G.bidOrder>=G.players.length){G.phase='play';G.currentPlayer=0;G.trickLeader=0;}
   await syncState();
 }
+async function doPlaySetback(cstr){
+  if(G.phase!=='play'||G.players[G.currentPlayer].id!==myId)return;
+  if(!isSetbackPlayable(cstr,myIdx))return;
+  G.hands[myId]=G.hands[myId].filter(function(h){return h!==cstr;});myHand=G.hands[myId];
+  G.trick.push({player:myIdx,card:cstr});
+  if(parseCard(cstr).suit===G.trump)G.trumpPlayed=true;
+  if(G.trick.length===G.players.length){await syncState();setTimeout(evalSetbackTrick,500);}
+  else{G.currentPlayer=(G.currentPlayer+1)%G.players.length;await syncState();}
+}
 function isSpadesPlayable(cstr,pidx){
   var c=parseCard(cstr),p=G.players[pidx],hand=G.hands[p.id]||[],trick=G.trick||[];
   if(trick.length===0){if(!G.spadesBroken&&c.suit==='S')return hand.every(function(h){return parseCard(h).suit==='S';});return true;}
   var ls=parseCard(trick[0].card).suit,has=hand.some(function(h){return parseCard(h).suit===ls;});
   if(has)return c.suit===ls;return true;
+}
+function isSetbackPlayable(cstr,pidx){
+  if(!G||!G.trump)return true;
+  var c=parseCard(cstr),p=G.players[pidx],hand=G.hands[p.id]||[],trick=G.trick||[];
+  if(trick.length===0)return true; // can lead anything
+  var ls=parseCard(trick[0].card).suit;
+  // Must follow suit if possible
+  var hasSuit=hand.some(function(h){return parseCard(h).suit===ls;});
+  if(hasSuit)return c.suit===ls||c.suit===G.trump;
+  // Can always play trump
+  return true;
 }
 async function doPlaySpades(cstr){
   if(G.phase!=='play'||G.players[G.currentPlayer].id!==myId)return;
@@ -850,6 +888,23 @@ async function doPlaySpades(cstr){
   G.trick.push({player:myIdx,card:cstr});if(parseCard(cstr).suit==='S')G.spadesBroken=true;
   if(G.trick.length===G.players.length){await syncState();setTimeout(evalSpadesTrick,500);}
   else{G.currentPlayer=(G.currentPlayer+1)%G.players.length;await syncState();}
+}
+async function evalSetbackTrick(){
+  if(!G||!G.trick||G.trick.length<G.players.length||G.host!==myId)return;
+  var led=parseCard(G.trick[0].card).suit;var win=G.trick[0];
+  G.trick.forEach(function(t){
+    var c=parseCard(t.card),wc=parseCard(win.card);
+    if(c.suit===G.trump&&wc.suit!==G.trump)win=t;
+    else if(c.suit===G.trump&&wc.suit===G.trump&&c.val>wc.val)win=t;
+    else if(c.suit===led&&wc.suit!==G.trump&&c.val>wc.val)win=t;
+  });
+  var wp=G.players[win.player];
+  if(!G.tricksTaken[wp.id])G.tricksTaken[wp.id]=[];
+  G.trick.forEach(function(t){G.tricksTaken[wp.id].push(t.card);});
+  G.trickCount++;G.trick=[];G.trickLeader=win.player;G.currentPlayer=win.player;
+  showToast(wp.name+' wins');
+  if(G.players.every(function(p){return(G.hands[p.id]||[]).length===0;}))endSetbackRound();
+  else await syncState();
 }
 async function evalSpadesTrick(){
   if(!G||G.host!==myId)return;
@@ -861,6 +916,57 @@ async function evalSpadesTrick(){
   G.trickCount++;G.trick=[];G.trickLeader=win.player;G.currentPlayer=win.player;
   showToast(wp.name+' wins');
   if(G.players.every(function(p){return(G.hands[p.id]||[]).length===0;}))endSpadesRound();else await syncState();
+}
+async function endSetbackRound(){
+  if(G.host!==myId)return;
+  // Score: High(1), Low(1), Jack(1), Game(1) in trump
+  var pts=Object.fromEntries(G.players.map(function(p){return[p.id,0];}));
+  var trumpCards=[];
+  G.players.forEach(function(p){
+    (G.tricksTaken[p.id]||[]).forEach(function(c){
+      if(parseCard(c).suit===G.trump)trumpCards.push({card:c,player:p.id});
+    });
+  });
+  if(trumpCards.length){
+    var high=trumpCards.reduce(function(a,b){return parseCard(a.card).val>parseCard(b.card).val?a:b;});
+    var low=trumpCards.reduce(function(a,b){return parseCard(a.card).val<parseCard(b.card).val?a:b;});
+    pts[high.player]=(pts[high.player]||0)+1;
+    pts[low.player]=(pts[low.player]||0)+1;
+    var jack=trumpCards.find(function(t){return parseCard(t.card).rank==='J';});
+    if(jack)pts[jack.player]=(pts[jack.player]||0)+1;
+    // Game point: most pip value in tricks
+    var gamePts=Object.fromEntries(G.players.map(function(p){return[p.id,0];}));
+    G.players.forEach(function(p){(G.tricksTaken[p.id]||[]).forEach(function(c){var v=parseCard(c).val;gamePts[p.id]+=(v>=10?10:v>=2?v:0);});});
+    var gameWinner=G.players.reduce(function(a,b){return gamePts[a.id]>gamePts[b.id]?a:b;});
+    pts[gameWinner.id]=(pts[gameWinner.id]||0)+1;
+  }
+  // Check if bidder made their bid
+  var bidder=G.players[G.highBidder||0];
+  if(bidder){
+    var bidderPts=pts[bidder.id]||0;
+    var bid=G.highBid||2;
+    if(bidderPts>=bid)G.scores[bidder.id]=(G.scores[bidder.id]||0)+bidderPts;
+    else G.scores[bidder.id]=(G.scores[bidder.id]||0)-bid;
+    G.players.forEach(function(p){if(p.id!==bidder.id)G.scores[p.id]=(G.scores[p.id]||0)+pts[p.id];});
+  }
+  G.lastRoundPts=pts;G.phase='roundEnd';await syncState();
+  document.getElementById('reTitle').textContent='Round '+(G.round||1)+' Results';
+  var html='<div>';
+  G.players.forEach(function(p){html+='<div class="re-row"><span>'+esc(p.name)+'</span><span>+'+((pts[p.id]||0))+' pts → <b style="color:#ffd700">'+(G.scores[p.id]||0)+'</b></span></div>';});
+  html+='</div>';
+  document.getElementById('reBody').innerHTML=html;
+  var isOver=Math.max.apply(null,G.players.map(function(p){return G.scores[p.id]||0;}))>=11;
+  var btn=document.getElementById('reNextBtn');btn.textContent=isOver?'Final Scores 🏆':'Next Round ▶';
+  btn.onclick=isOver?showGameOver:nextRoundSetback;openPanel('roundEndPanel');
+}
+async function nextRoundSetback(){
+  closePanel('roundEndPanel');if(G.host!==myId)return;
+  G.round=(G.round||1)+1;
+  var deck=shuffle(makeDeck()),hands={};
+  G.players.forEach(function(p,i){hands[p.id]=deck.slice(i*6,(i+1)*6);});
+  G.hands=hands;G.tricksTaken=Object.fromEntries(G.players.map(function(p){return[p.id,[]];}));
+  G.bids={};G.trump=null;G.trick=[];G.trickCount=0;G.phase='bid';G.bidOrder=0;G.highBid=0;G.highBidder=0;
+  myHand=G.hands[myId]||[];await syncState();
 }
 async function endSpadesRound(){
   G.players.forEach(function(p){
