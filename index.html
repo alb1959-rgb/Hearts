@@ -1035,11 +1035,33 @@ function bjRender(){
     G.dealerHand.forEach(function(c,i){if(i===1&&G.phase==='play')dc.appendChild(makeBackCard());else dc.appendChild(makeCardEl(c));});
     document.getElementById('bjDealerVal').textContent=G.phase==='play'?bjCardVal(G.dealerHand[0])+'?':bjHandVal(G.dealerHand);
   }else document.getElementById('bjDealerVal').textContent='';
+  // Show ALL players' hands
   var myH=G.playerHands&&G.playerHands[myId]||[];
-  var pc2=document.getElementById('bjPlayerCards');pc2.innerHTML='';
-  myH.forEach(function(c){pc2.appendChild(makeCardEl(c));});
-  document.getElementById('bjPlayerVal').textContent=myH.length?bjHandVal(myH):'';
-  document.getElementById('bjPlayerLabel').textContent=(myP.name||'You')+"'s Hand";
+  var allHandsEl=document.getElementById('bjPlayerCards');allHandsEl.innerHTML='';
+  var allValEl=document.getElementById('bjPlayerVal');allValEl.textContent='';
+  document.getElementById('bjPlayerLabel').textContent='Players';
+  if(G.playerHands&&Object.keys(G.playerHands).length>0){
+    G.players.forEach(function(p){
+      var ph=G.playerHands[p.id]||[];if(!ph.length)return;
+      var isActive=G.players[G.currentPlayer]&&G.players[G.currentPlayer].id===p.id;
+      var wrap=document.createElement('div');
+      wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;margin:0 6px;'+(isActive?'border:2px solid #ffd700;border-radius:14px;padding:6px;background:rgba(255,200,40,.1)':'padding:6px');
+      var nameEl=document.createElement('div');
+      nameEl.style.cssText='font-size:11px;font-weight:700;color:'+(isActive?'#ffd700':'rgba(255,240,200,.6)')+';margin-bottom:2px';
+      nameEl.textContent=esc(p.name)+(p.id===myId?' (you)':'')+(isActive?' ◀':'');
+      wrap.appendChild(nameEl);
+      var cardsRow=document.createElement('div');cardsRow.style.cssText='display:flex;gap:4px;flex-wrap:wrap;justify-content:center';
+      ph.forEach(function(c){cardsRow.appendChild(makeCardEl(c));});
+      wrap.appendChild(cardsRow);
+      var valEl=document.createElement('div');
+      var v=bjHandVal(ph);
+      valEl.style.cssText='font-size:16px;font-weight:900;color:'+(v>21?'#ff6060':v===21?'#ffd700':'#fff8e8')+';margin-top:2px';
+      valEl.textContent=v>21?'BUST ('+v+')':v===21?'21! ⭐':v;
+      if(G.bets[p.id])valEl.textContent+='  Bet: $'+G.bets[p.id];
+      wrap.appendChild(valEl);
+      allHandsEl.appendChild(wrap);
+    });
+  }
   document.getElementById('bjChips').textContent=G.chips[myId]||0;
   document.getElementById('bjBetAmt').textContent=G.bets[myId]||0;
   document.getElementById('bjBetSection').style.display=G.phase==='bet'?'block':'none';
@@ -1071,11 +1093,22 @@ function bjRender(){
         var sv=document.createElement('div');sv.style.cssText='font-size:11px;color:rgba(255,240,200,.6);text-align:center;margin-top:6px;padding:0 10px';sv.textContent=status;bar.appendChild(sv);
       }
     }
-  }else if(G.phase==='play'&&G.players[G.currentPlayer]&&G.players[G.currentPlayer].id===myId){
+  }else if(G.phase==='play'){
+    var curP=G.players[G.currentPlayer];
+    var isMyTurn=curP&&curP.id===myId;
     var val=bjHandVal(myH);
-    if(val<21){var h=document.createElement('button');h.className='btn btn-fire btn-sm';h.textContent='Hit 👊';h.style.maxWidth='120px';h.onclick=bjHit;bar.appendChild(h);}
-    var s=document.createElement('button');s.className='btn btn-gold btn-sm';s.textContent='Stand ✋';s.style.maxWidth='120px';s.onclick=bjStand;bar.appendChild(s);
-    if(myH.length===2&&(G.chips[myId]||0)>=(G.bets[myId]||0)){var d=document.createElement('button');d.className='btn btn-sm';d.style.background='linear-gradient(135deg,#0a40aa,#2060ff)';d.style.color='#fff';d.textContent='Double ⚡';d.style.maxWidth='120px';d.onclick=bjDouble;bar.appendChild(d);}
+    if(isMyTurn){
+      if(val<21){var ht=document.createElement('button');ht.className='btn btn-fire btn-sm';ht.textContent='Hit 👊';ht.style.maxWidth='120px';ht.onclick=bjHit;bar.appendChild(ht);}
+      var st=document.createElement('button');st.className='btn btn-gold btn-sm';st.textContent='Stand ✋';st.style.maxWidth='120px';
+      st.onclick=function(){if(G.host===myId)bjStand();else{G.currentPlayer++;G.ts=Date.now();lastTs=G.ts;sbUpsert(roomCode,G).then(function(){bjRender();});showToast('Standing — waiting for host...');}};
+      bar.appendChild(st);
+      if(myH.length===2&&(G.chips[myId]||0)>=(G.bets[myId]||0)){
+        var dbl=document.createElement('button');dbl.className='btn btn-sm';dbl.style.background='linear-gradient(135deg,#0a40aa,#2060ff)';dbl.style.color='#fff';dbl.textContent='Double ⚡';dbl.style.maxWidth='120px';dbl.onclick=bjDouble;bar.appendChild(dbl);
+      }
+    }else if(curP){
+      var wt=document.createElement('div');wt.style.cssText='font-size:14px;color:rgba(255,240,200,.7);text-align:center;padding:10px';
+      wt.textContent='Waiting for '+esc(curP.name)+'...';bar.appendChild(wt);
+    }
   }else if(G.phase==='result'){
     var nb=document.createElement('button');nb.className='btn btn-fire';nb.style.maxWidth='240px';nb.textContent='New Round 🔥';nb.onclick=bjNewRound;bar.appendChild(nb);
     var ml=document.createElement('button');ml.className='btn btn-ghost btn-sm';ml.textContent='Back to Menu';ml.onclick=backToLobby;bar.appendChild(ml);
@@ -1097,26 +1130,48 @@ async function bjDeal(){
   G.players.forEach(function(p){if(!p.isAI){G.chips[p.id]=(G.chips[p.id]||1000)-(G.bets[p.id]||0);}else{G.bets[p.id]=Math.min(50,G.chips[p.id]||1000);G.chips[p.id]=(G.chips[p.id]||1000)-G.bets[p.id];}});
   var deck=bjDeck(),di=0;function draw(){return deck[di++];}
   G.playerHands={};G.players.forEach(function(p){G.playerHands[p.id]=[draw(),draw()];});
-  G.dealerHand=[draw(),draw()];G.phase='play';G.currentPlayer=0;await syncState();
-  if(bjHandVal(G.dealerHand)===21||bjHandVal(G.playerHands[myId]||[])===21)setTimeout(bjReveal,500);
+  G.dealerHand=[draw(),draw()];G.phase='play';G.currentPlayer=0;
+  // NOTE: Never reveal early — all players must act first, even if dealer has 21
+  await syncState();
 }
 async function bjHit(){
-  if(!G||G.phase!=='play')return;
+  if(!G||G.phase!=='play'||G.players[G.currentPlayer].id!==myId)return;
   var deck=bjDeck();G.playerHands[myId].push(deck[Math.floor(Math.random()*deck.length)]);
-  if(bjHandVal(G.playerHands[myId])>=21){await bjStand();return;}await syncState();
+  if(bjHandVal(G.playerHands[myId])>=21){
+    // Bust or 21 — auto stand, but only host advances game
+    if(G.host===myId){await bjStand();}
+    else{await syncState();showToast(bjHandVal(G.playerHands[myId])>=21?'Bust! Waiting for host...':'');}
+    return;
+  }
+  await syncState();
 }
 async function bjStand(){
-  if(!G)return;G.currentPlayer++;
+  if(!G||G.host!==myId)return;
+  // Move to next human player (skip AIs — they act at reveal time)
+  G.currentPlayer++;
+  // Skip AI players for now
   while(G.currentPlayer<G.players.length&&G.players[G.currentPlayer].isAI){
-    var ap=G.players[G.currentPlayer],deck2=bjDeck();
-    while(bjHandVal(G.playerHands[ap.id])<17)G.playerHands[ap.id].push(deck2[Math.floor(Math.random()*deck2.length)]);
     G.currentPlayer++;
   }
-  if(G.currentPlayer>=G.players.length){bjReveal();return;}await syncState();
+  if(G.currentPlayer>=G.players.length){
+    // All human players done — now run AI hands then dealer reveals
+    G.players.forEach(function(p){
+      if(p.isAI){
+        var deck2=bjDeck();
+        while(bjHandVal(G.playerHands[p.id])<17)
+          G.playerHands[p.id].push(deck2[Math.floor(Math.random()*deck2.length)]);
+      }
+    });
+    bjReveal();return;
+  }
+  await syncState();
 }
 async function bjDouble(){
-  if(!G)return;var extra=G.bets[myId]||0;G.chips[myId]=(G.chips[myId]||0)-extra;G.bets[myId]=(G.bets[myId]||0)+extra;
-  var deck=bjDeck();G.playerHands[myId].push(deck[Math.floor(Math.random()*deck.length)]);await bjStand();
+  if(!G||G.players[G.currentPlayer].id!==myId)return;
+  var extra=G.bets[myId]||0;
+  G.chips[myId]=(G.chips[myId]||0)-extra;G.bets[myId]=(G.bets[myId]||0)+extra;
+  var deck=bjDeck();G.playerHands[myId].push(deck[Math.floor(Math.random()*deck.length)]);
+  if(G.host===myId){await bjStand();}else{await syncState();}
 }
 async function bjReveal(){
   var deck=bjDeck();while(bjHandVal(G.dealerHand)<17)G.dealerHand.push(deck[Math.floor(Math.random()*deck.length)]);
