@@ -1045,8 +1045,32 @@ function bjRender(){
   document.getElementById('bjBetSection').style.display=G.phase==='bet'?'block':'none';
   var bar=document.getElementById('bjActionBar');bar.innerHTML='';
   if(G.phase==='bet'){
-    var clr=document.createElement('button');clr.className='btn btn-ghost btn-sm';clr.textContent='Clear Bet';clr.onclick=function(){G.bets[myId]=0;bjRender();};bar.appendChild(clr);
-    var deal=document.createElement('button');deal.className='btn btn-fire';deal.style.maxWidth='240px';deal.textContent='Deal Cards 🃏';deal.disabled=!(G.bets[myId]>0);deal.style.opacity=G.bets[myId]>0?'1':'0.4';deal.onclick=bjDeal;bar.appendChild(deal);
+    // Show chips and bet controls to ALL human players
+    var myBet=G.bets[myId]||0;
+    var hasBet=myBet>0;
+    // Clear bet button
+    var clr=document.createElement('button');clr.className='btn btn-ghost btn-sm';clr.textContent='Clear Bet';
+    clr.onclick=function(){if(!G||G.phase!=='bet')return;G.bets[myId]=0;bjRender();};bar.appendChild(clr);
+    // Lock/confirm bet button for non-hosts
+    var isHost=G.host===myId;
+    if(!isHost){
+      var lck=document.createElement('button');lck.className='btn btn-gold';lck.style.maxWidth='240px';
+      lck.textContent=hasBet?'✅ Bet Placed: $'+myBet+' — waiting for host':'Place your bet above, then confirm';
+      lck.style.opacity=hasBet?'1':'0.5';lck.disabled=!hasBet;
+      lck.onclick=function(){showToast('Bet locked in! Waiting for host to deal...');};bar.appendChild(lck);
+    } else {
+      // Host sees deal button — waits for all to bet
+      var allBet=G.players.filter(function(p){return !p.isAI;}).every(function(p){return (G.bets[p.id]||0)>0;});
+      var deal=document.createElement('button');deal.className='btn btn-fire';deal.style.maxWidth='240px';
+      deal.textContent=allBet?'Deal Cards 🃏':'Waiting for all bets... (Deal anyway)';
+      deal.style.opacity='1';deal.onclick=bjDeal;bar.appendChild(deal);
+      if(!allBet){
+        var status=G.players.filter(function(p){return !p.isAI;}).map(function(p){
+          return esc(p.name)+': '+(G.bets[p.id]>0?'$'+(G.bets[p.id]+' ✅'):'no bet yet');
+        }).join(' | ');
+        var sv=document.createElement('div');sv.style.cssText='font-size:11px;color:rgba(255,240,200,.6);text-align:center;margin-top:6px;padding:0 10px';sv.textContent=status;bar.appendChild(sv);
+      }
+    }
   }else if(G.phase==='play'&&G.players[G.currentPlayer]&&G.players[G.currentPlayer].id===myId){
     var val=bjHandVal(myH);
     if(val<21){var h=document.createElement('button');h.className='btn btn-fire btn-sm';h.textContent='Hit 👊';h.style.maxWidth='120px';h.onclick=bjHit;bar.appendChild(h);}
@@ -1057,7 +1081,16 @@ function bjRender(){
     var ml=document.createElement('button');ml.className='btn btn-ghost btn-sm';ml.textContent='Back to Menu';ml.onclick=backToLobby;bar.appendChild(ml);
   }
 }
-function addBet(n){if(!G||G.phase!=='bet')return;var cur=G.bets[myId]||0;if(cur+n>(G.chips[myId]||0)){showToast('Not enough chips!');return;}G.bets[myId]=cur+n;bjRender();}
+function addBet(n){
+  if(!G||G.phase!=='bet')return;
+  var cur=G.bets[myId]||0;
+  if(cur+n>(G.chips[myId]||0)){showToast('Not enough chips!');return;}
+  G.bets[myId]=cur+n;
+  // Push bet to Supabase so other players see it
+  G.ts=Date.now();lastTs=G.ts;
+  sbUpsert(roomCode,G);
+  bjRender();
+}
 function bjDeck(){return shuffle(makeDeck().concat(makeDeck()));}
 async function bjDeal(){
   if(!G||!(G.bets[myId]>0))return;
@@ -1097,8 +1130,10 @@ async function bjReveal(){
   G.phase='result';await syncState();
 }
 async function bjNewRound(){
-  if(!G)return;G.phase='bet';G.dealerHand=[];G.playerHands={};G.bets={};G.currentPlayer=0;
-  G.players.forEach(function(p){if((G.chips[p.id]||0)<=0)G.chips[p.id]=500;});await syncState();
+  if(!G||G.host!==myId)return;
+  G.phase='bet';G.dealerHand=[];G.playerHands={};G.bets={};G.currentPlayer=0;
+  G.players.forEach(function(p){if((G.chips[p.id]||0)<=0)G.chips[p.id]=500;});
+  await syncState();
 }
 
 // ── SHARED UI ─────────────────────────────────────────────────────────────
